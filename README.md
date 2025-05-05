@@ -77,6 +77,3 @@ This project is part of a broader mission to map the Nigerian data content lands
 | ETL with Prefect in 2024 | NaijaDataOps | 8,342 | 1,301 |
 
 ---
-
-## 📁 File Structure
-
