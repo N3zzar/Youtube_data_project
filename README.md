@@ -1,4 +1,4 @@
-# 🇳🇬 Identifying Nigerian YouTube Creators in Analytics Engineering Using YouTube Data API
+# Identifying Nigerian YouTube Creators in Analytics Engineering Using YouTube Data API
 
 [![YouTube Data API](https://img.shields.io/badge/API-YouTube%20v3-red)](https://developers.google.com/youtube/v3)
 [![Python](https://img.shields.io/badge/Python-3.10-blue)](https://www.python.org/)
