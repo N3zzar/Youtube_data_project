@@ -4,76 +4,94 @@
 [![Python](https://img.shields.io/badge/Python-3.10-blue)](https://www.python.org/)
 [![Status](https://img.shields.io/badge/status-active-brightgreen)]()
 
-## 🎯 Project Overview and Problem Statement
 
-Despite the growth of analytics engineering globally, there is limited visibility into Nigerian creators producing educational content on tools like dbt, Airbyte, Prefect, and others. There's a need to identify, analyze, and promote these local voices who are creating valuable content — but they're buried under a mountain of global results on YouTube.
+# 📊 YouTube Analytics Engineering Content Scraper
 
-Key Questions:
-
-- Who are the Nigerian creators in the analytics engineering niche?
-- What are their most-viewed and most-engaged videos?
-- Which tools are Nigerian creators actively teaching?
+This project scrapes YouTube for educational videos related to **Analytics Engineering** and its key tools (like dbt, Airbyte, Prefect, etc.) using the YouTube Data API. It collects video metadata, channel details, and engagement metrics to help identify high-quality content and top creators in the data space—especially those relevant to the Nigerian tech scene.
 
 ---
 
-## Introduction 
+## 🧠 Problem Statement
 
-In this project, I leveraged the YouTube Data API to systematically crawl and analyze YouTube content related to popular analytics engineering tools. I focused on content published from 2023 onward, filtered by Nigerian channels only, and explored metrics like video views, likes, and channel subscriber counts.
-This project is part of a broader mission to map the Nigerian data content landscape, identify underrepresented creators, and understand the types of tools local educators are focused on. The end product is a clean dataset ready for KPI analysis and dashboarding.
-
----
-
-## ⚙️ Tech Stack
-
-| Tool | Purpose |
-|------|---------|
-| Python | Core scripting and logic |
-| YouTube Data API v3 | Video + channel metadata |
-| Pandas | Data wrangling |
-| CSV | Data storage |
-| Power BI / Hex (optional) | Visualization layer |
+Finding high-quality, localized content for learning analytics engineering is tough in the endless sea of YouTube videos. This project aims to solve that by programmatically searching, analyzing, and ranking videos and channels that focus on analytics engineering tools and topics.
 
 ---
 
-## 📂 Features
+## 📜 Problem Overview
 
-- ✅ Search YouTube using multiple analytics engineering keywords
-- ✅ Cache video and channel IDs to **avoid duplicate API calls**
-- ✅ Cap results to **2 pages per keyword** to manage API quotas
-- ✅ Fetch detailed video + channel metadata
-- ✅ Filter results to Nigerian creators only
-- ✅ Export results to `engineering_youtube_NG_data.csv`
-
----
-
-## 🚀 How It Works
-
-1. **Search Setup**
-   - Define search keywords
-   - Set date range from 2023 onwards
-   - Limit to 2 pages per keyword to stay within quota
-
-2. **API Calls**
-   - Search YouTube and retrieve `videoId`s
-   - Call `videos().list()` for statistics
-   - Call `channels().list()` for creator metadata
-
-3. **Data Wrangling**
-   - Join video and channel info
-   - Filter to `channel_country = "NG"`
-   - Clean, deduplicate, and sort by view count
-
-4. **Save to CSV**
-   - Output: `engineering_youtube_NG_data.csv`
+With the growth of modern data tools like Prefect, dbt, Airbyte, and Hex, the demand for up-to-date learning resources has exploded. But learners—particularly in underrepresented regions—struggle to find the most relevant content. This scraper:
+- Searches for targeted keywords,
+- Aggregates metadata from videos and channels,
+- Ranks creators and content by engagement,
+- Helps surface the most impactful videos and educators in the space.
 
 ---
 
-## 🧪 Sample Output
+## 🔑 Key Questions This Project Answers
 
-| Video Title | Channel Title | View Count | Subscriber Count |
-|-------------|----------------|------------|------------------|
-| Getting Started with dbt | DataNaija | 12,309 | 4,211 |
-| Airbyte vs Fivetran | AnalystKulture | 9,889 | 2,710 |
-| ETL with Prefect in 2024 | NaijaDataOps | 8,342 | 1,301 |
+- Which videos about analytics engineering tools have gained the most traction since 2023?
+- Who are the most influential content creators in this niche?
+- Are there any standout Nigerian or African creators?
+- Which keywords yield the most valuable content?
+- How do different tools compare in terms of engagement and visibility?
 
 ---
+
+## 🛠️ Tech Stack
+
+| Purpose            | Tool/Library                            |
+|--------------------|------------------------------------------|
+| API Interaction    | YouTube Data API v3                      |
+| Language           | Python                                   |
+| Data Handling      | pandas                                   |
+| API Client         | google-api-python-client                 |
+| Data Storage       | CSV (`Nezzar_results.csv`)               |
+| Visualization (Optional) | Power BI, Plotly, or Streamlit        |
+
+---
+
+## 🌟 Features
+
+- 🔍 **Keyword-based Video Search** for analytics engineering-related topics
+- 🧠 **Deduplication Logic** to avoid overlapping video results
+- 📊 **Engagement Metrics Extraction**: Views, likes, comments
+- 📺 **Channel Stats Extraction**: Channel title and subscriber count
+- 🔁 **Robust Retry Logic** for API call failures
+- 🧹 **Clean CSV Export** ready for analysis
+- 📈 **Sorted Output** by view count to spotlight top-performing videos
+
+---
+
+## ⚙️ How It Works
+
+1. **Search Phase**  
+   Iterates through predefined search terms (e.g., `dbt data analytics tutorial`) and collects up to 5 pages of results (max 250 videos per term).
+
+2. **Deduplication**  
+   Ensures each video appears only once in the final dataset.
+
+3. **Details Collection**  
+   Fetches additional statistics for each video and corresponding channel.
+
+4. **Data Enrichment**  
+   Merges channel and video metadata into a single structured DataFrame.
+
+5. **Output**  
+   Exports the final result to a CSV file named `Nezzar_results.csv`, sorted by view count.
+
+---
+
+## 📦 Output File
+
+- **Filename**: `Nezzar_results.csv`
+- **Columns**:
+  - `video_id`
+  - `title`
+  - `description`
+  - `published_at`
+  - `view_count`
+  - `like_count`
+  - `comment_count`
+  - `channel_id`
+  - `channel_title`
+  - `subscriber_count`
