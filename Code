@@ -2,200 +2,129 @@ import os
 import pandas as pd
 from googleapiclient.discovery import build
 import time
+import random
 
 # ========== CONFIG ==========
-API_KEY = 'YOUR_API_KEY'  # 🛑 Replace with your actual API key
+API_KEY = 'AIzaSyAqjUwXtRwZUxAVIaEf8CeJ_OG65JjtKso'  # Set this in your environment
 YOUTUBE = build('youtube', 'v3', developerKey=API_KEY)
 
-SEARCH_TERMS = ['prefect', 'airbyte', 'postgresql', 'dbt', 'hex']
+SEARCH_TERMS = ['prefect ETL python', 'airbyte data engineering', 'analytics engineer', 'postgresql for data engineering', 'dbt data analytics tutorial', 'hex for data visualization']
 PUBLISHED_AFTER = '2023-01-01T00:00:00Z'
-MAX_RESULTS = 50  # Max results per page
-MAX_PAGES = 2  # Limit search to 2 pages per term
+MAX_RESULTS = 50       # Max results per page (max 50)
+MAX_PAGES = 5         # Increase pages to deepen results
+ORDER = 'relevance'        # 'date', 'relevance', 'viewCount', etc.
+
+
 
 # ========== HELPER FUNCTIONS ==========
 
-def search_videos(query, seen_video_ids):
+def retry_request(method, **kwargs):
     """
-    Search YouTube for videos matching the query and return new video items.
-    Limits to MAX_PAGES pages per term.
+    Exponential backoff wrapper for API calls.
     """
-    video_items = []
-    next_page_token = None
-    page_count = 0
+    delay = 1
+    for attempt in range(5):
+        try:
+            return method(**kwargs).execute()
+        except Exception as e:
+            print(f"⚠️ Error: {e}. Retrying in {delay}s...")
+            time.sleep(delay)
+            delay *= 2
+    raise RuntimeError("Max retries exceeded.")
 
-    while page_count < MAX_PAGES:
-        request = YOUTUBE.search().list(
+
+def search_videos(query, seen_ids):
+    """
+    Fetches videos for a search term, deduping by video ID.
+    """
+    items, token, page = [], None, 0
+    while page < MAX_PAGES:
+        resp = retry_request(
+            YOUTUBE.search().list,
             q=query,
             part='id,snippet',
             type='video',
             publishedAfter=PUBLISHED_AFTER,
             maxResults=MAX_RESULTS,
-            pageToken=next_page_token,
-            relevanceLanguage='en',
-            regionCode='NG',
-            order='viewCount'
+            pageToken=token,
+            order=ORDER
         )
-        response = request.execute()
-        page_items = response.get('items', [])
-
-        # Deduplicate using seen_video_ids
-        new_items = [
-            item for item in page_items
-            if item['id']['videoId'] not in seen_video_ids
-        ]
-
-        video_items.extend(new_items)
-        for item in new_items:
-            seen_video_ids.add(item['id']['videoId'])
-
-        next_page_token = response.get('nextPageToken')
-        if not next_page_token:
+        vids = resp.get('items', [])
+        new = [v for v in vids if v['id']['videoId'] not in seen_ids]
+        for v in new:
+            seen_ids.add(v['id']['videoId'])
+            items.append(v)
+        token = resp.get('nextPageToken')
+        if not token:
             break
-
-        page_count += 1
-        time.sleep(1)
-
-    return video_items
+        page += 1
+        time.sleep(random.uniform(0.5, 1.5))  # jitter
+    return items
 
 
-def get_video_details(video_ids):
-    """
-    Fetch detailed info for a list of video IDs.
-    """
-    details = []
-    for i in range(0, len(video_ids), 50):
-        request = YOUTUBE.videos().list(
-            part='snippet,statistics,contentDetails,status',
-            id=','.join(video_ids[i:i + 50])
+def get_details(resource, part, id_list):
+    """Generic details fetcher for videos or channels."""
+    results = []
+    for i in range(0, len(id_list), 50):
+        resp = retry_request(
+            getattr(YOUTUBE, resource)().list,
+            part=part,
+            **{ 'id': ','.join(id_list[i:i+50]) }
         )
-        response = request.execute()
-        details.extend(response.get('items', []))
-        time.sleep(1)
-    return details
+        results.extend(resp.get('items', []))
+        time.sleep(random.uniform(0.5, 1.5))
+    return results
 
 
-def get_channel_details(channel_ids, seen_channel_ids):
-    """
-    Fetch channel details for a list of channel IDs, avoiding duplicates.
-    """
-    new_channel_ids = [cid for cid in channel_ids if cid not in seen_channel_ids]
-    channel_info = []
+def build_dataframe(videos, channels_map=None):
+    """Merge video + channel data (if provided)."""
+    rows = []
+    for v in videos:
+        snip = v['snippet']
+        stats = v.get('statistics', {})
+        base = {
+            'video_id': v['id'],
+            'title': snip.get('title'),
+            'description': snip.get('description'),
+            'published_at': snip.get('publishedAt'),
+            'view_count': int(stats.get('viewCount', 0)),
+            'like_count': int(stats.get('likeCount', 0)),
+            'comment_count': int(stats.get('commentCount', 0)),
+            'channel_id': snip['channelId'],
+        }
+        if channels_map:
+            base.update(channels_map.get(snip['channelId'], {}))
+        rows.append(base)
+    return pd.DataFrame(rows)
 
-    for i in range(0, len(new_channel_ids), 50):
-        request = YOUTUBE.channels().list(
-            part='snippet,statistics',
-            id=','.join(new_channel_ids[i:i + 50])
-        )
-        response = request.execute()
-        items = response.get('items', [])
-        channel_info.extend(items)
-
-        for item in items:
-            seen_channel_ids.add(item['id'])
-
-        time.sleep(1)
-    return channel_info
-
-
-def build_dataframe(videos, channels):
-    """
-    Merge video and channel metadata into a single dataframe.
-    """
-    # Build channel lookup dictionary
-    channel_map = {
-        ch['id']: {
-            'channel_title': ch['snippet']['title'],
-            'channel_description': ch['snippet'].get('description', ''),
-            'channel_country': ch['snippet'].get('country', 'Unknown'),
-            'channel_created_at': ch['snippet']['publishedAt'],
-            'subscriber_count': ch['statistics'].get('subscriberCount', 0),
-            'channel_video_count': ch['statistics'].get('videoCount', 0),
-            'channel_view_count': ch['statistics'].get('viewCount', 0),
-        } for ch in channels
-    }
-
-    # Compile full data rows
-    data = []
-    for video in videos:
-        snip = video['snippet']
-        stats = video.get('statistics', {})
-        content = video.get('contentDetails', {})
-        status = video.get('status', {})
-        channel_id = snip['channelId']
-        channel_data = channel_map.get(channel_id, {})
-
-        data.append({
-            'video_id': video['id'],
-            'video_title': snip.get('title', ''),
-            'video_description': snip.get('description', ''),
-            'tags': snip.get('tags', []),
-            'published_at': snip.get('publishedAt', ''),
-            'category_id': snip.get('categoryId', ''),
-            'live_broadcast_content': snip.get('liveBroadcastContent', ''),
-            'default_language': snip.get('defaultLanguage', ''),
-            'duration': content.get('duration', ''),
-            'definition': content.get('definition', ''),
-            'caption': content.get('caption', ''),
-            'projection': content.get('projection', ''),
-            'view_count': stats.get('viewCount', 0),
-            'like_count': stats.get('likeCount', 0),
-            'comment_count': stats.get('commentCount', 0),
-            'favorite_count': stats.get('favoriteCount', 0),
-            'privacy_status': status.get('privacyStatus', ''),
-            'license': status.get('license', ''),
-            'channel_id': channel_id,
-            **channel_data
-        })
-
-    df = pd.DataFrame(data)
-
-    # Filter to only Nigerian channels
-    df = df[df['channel_country'].str.upper() == 'NG']
-
-    return df
-
-# ========== MAIN FUNCTION ==========
+# ========== MAIN ==========
 
 def main():
-    print("🚀 Starting YouTube scrape...")
-
-    seen_video_ids = set()
-    seen_channel_ids = set()
-    all_search_results = []
-
-    # Search and collect videos for each term
+    seen_vids, all_videos = set(), []
+    # Search
     for term in SEARCH_TERMS:
-        print(f"🔍 Searching for: {term}")
-        results = search_videos(term, seen_video_ids)
-        all_search_results.extend(results)
+        print(f"Searching '{term}'...")
+        found = search_videos(term, seen_vids)
+        all_videos.extend(found)
+    print(f"Total unique videos: {len(seen_vids)}")
 
-    if not all_search_results:
-        print("⚠️ No videos found.")
-        return
+    # Video details
+    vid_ids = list(seen_vids)
+    videos_full = get_details('videos', 'snippet,statistics,contentDetails', vid_ids)
 
-    print(f"🎯 Unique videos collected: {len(seen_video_ids)}")
-    video_ids = list(seen_video_ids)
-    detailed_videos = get_video_details(video_ids)
+    # Channel details (optional)
+    chan_ids = list({v['snippet']['channelId'] for v in videos_full})
+    channels = get_details('channels', 'snippet,statistics', chan_ids)
+    chan_map = {c['id']:{
+        'channel_title': c['snippet']['title'],
+        'subscriber_count': int(c['statistics'].get('subscriberCount', 0))
+    } for c in channels}
 
-    # Collect unique channel IDs
-    channel_ids = list({v['snippet']['channelId'] for v in detailed_videos})
-    print(f"📺 Fetching channel data for {len(channel_ids)} channels")
-    channel_details = get_channel_details(channel_ids, seen_channel_ids)
-
-    df = build_dataframe(detailed_videos, channel_details)
-
-    if df.empty:
-        print("⚠️ No Nigerian data found.")
-        return
-
-    df.drop_duplicates(subset='video_id', inplace=True)
-    df.sort_values(by='view_count', ascending=False, inplace=True)
-    df.to_csv('engineering_youtube_NG_data.csv', index=False)
-    print("💾 Saved to engineering_youtube_NG_data.csv")
-
-    print("✅ Sample top videos:")
-    print(df[['video_title', 'channel_title', 'view_count']].head(3))
-
+    df = build_dataframe(videos_full, chan_map)
+    df.sort_values('view_count', ascending=False, inplace=True)
+    fn = 'Nezzar_results.csv'
+    df.to_csv(fn, index=False)
+    print(f"Saved results to {fn}")
 
 if __name__ == '__main__':
     main()
