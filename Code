@@ -5,7 +5,7 @@ import time
 import random
 
 # ========== CONFIG ==========
-API_KEY = 'AIzaSyAqjUwXtRwZUxAVIaEf8CeJ_OG65JjtKso'  # Set this in your environment
+API_KEY = ''  # Set this in your environment
 YOUTUBE = build('youtube', 'v3', developerKey=API_KEY)
 
 SEARCH_TERMS = ['prefect ETL python', 'airbyte data engineering', 'analytics engineer', 'postgresql for data engineering', 'dbt data analytics tutorial', 'hex for data visualization']
