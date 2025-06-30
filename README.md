@@ -7,7 +7,7 @@
 
 # 📊 YouTube Analytics Engineering Content Scraper
 
-This project scrapes YouTube for educational videos related to **Analytics Engineering** and its key tools (like dbt, Airbyte, Prefect, etc.) using the YouTube Data API. It collects video metadata, channel details, and engagement metrics to help identify high-quality content and top creators in the data space—especially those relevant to the Nigerian tech scene.
+This project scrapes YouTube for educational videos related to **Analytics Engineering** and its key tools (like dbt, Airbyte, Prefect, etc.) using the YouTube Data API. It collects video metadata, channel details, and engagement metrics to help identify high-quality content and top creators in the data space — especially those relevant to the Nigerian tech scene.
 
 ---
 
@@ -46,7 +46,7 @@ With the growth of modern data tools like Prefect, dbt, Airbyte, and Hex, the de
 | Data Handling      | pandas                                   |
 | API Client         | google-api-python-client                 |
 | Data Storage       | CSV (`Nezzar_results.csv`)               |
-| Visualization (Optional) | Power BI, Plotly, or Streamlit        |
+| Visualization (Optional) | Hex        |
 
 ---
 
